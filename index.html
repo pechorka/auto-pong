@@ -1,0 +1,35 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Zig WASM DVD Animation</title>
+    <style>
+        canvas { border: 1px solid black; }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        WebAssembly.instantiateStreaming(fetch('game.wasm'))
+            .then(({instance}) => {
+                const updateFn = instance.exports.update;
+                const memoryBuffer = instance.exports.screen_buffer;
+                
+                function animate() {
+                    updateFn(); // Update Zig logic
+                    
+                    const imageData = ctx.createImageData(800, 600);
+                    imageData.data.set(new Uint8Array(memoryBuffer.buffer));
+                    ctx.putImageData(imageData, 0, 0);
+                    
+                    requestAnimationFrame(animate);
+                }
+                
+                animate();
+            });
+    </script>
+</body>
+</html>
