@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Rust + WASM + Canvas DVD Logo</title>
+<style>
+  body {
+    background: #222;
+    color: #eee;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0; padding: 0;
+  }
+  canvas {
+    margin-top: 20px;
+    border: 1px solid #444;
+  }
+</style>
+</head>
+<body>
+<h1>Rust + WASM + Canvas DVD Logo</h1>
+<canvas id="myCanvas"></canvas>
+<script type="module">
+import init from './pkg/game.js'
+
+async function run() {
+  const wasm = await init('./pkg/game_bg.wasm');
+
+  const width = wasm.get_width();
+  const height = wasm.get_height();
+
+  const canvas = document.getElementById('myCanvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+
+  const pixelsPtr = wasm.get_pixels_ptr();
+  const wasmMemoryBuffer = new Uint8ClampedArray(wasm.memory.buffer, pixelsPtr, width * height * 4);
+  const imageData = new ImageData(wasmMemoryBuffer, width, height);
+
+  function render() {
+    wasm.update_frame();
+    ctx.putImageData(imageData, 0, 0);
+    requestAnimationFrame(render);
+  }
+
+  render();
+}
+
+run().catch(console.error);
+</script>
+</body>
+</html>
