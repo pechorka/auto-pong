@@ -1,0 +1,68 @@
+<html>
+  <head>
+    <title>Auto pong WASM</title>
+  </head>
+  <body>
+    <canvas id="app" width="1600" height="900"></canvas>
+    <script >
+        function make_environment(...envs) {
+            return new Proxy(envs, {
+                get(target, prop, receiver) {
+                    for (let env of envs) {
+                        if (env.hasOwnProperty(prop)) {
+                            return env[prop];
+                        }
+                    }
+                    return (...args) => {console.error("NOT IMPLEMENTED: "+prop, args)}
+                }
+            });
+        }
+
+
+        async function main() {
+            let app = document.getElementById("app");
+            let ctx = app.getContext("2d");
+
+            const response = await fetch("game.wasm");
+            const bytes = await response.arrayBuffer();
+            const {instance} = await WebAssembly.instantiate(bytes, {
+                env: make_environment()
+            });
+
+
+            const update = instance.exports.update;
+            const get_pixels = instance.exports.get_pixels;
+            const get_width = instance.exports.get_width;
+            const get_height = instance.exports.get_height;
+
+            const width = get_width();
+            const height = get_height();
+
+            const pixels_ptr = get_pixels();
+            const wasmMemoryBuffer = new Uint8ClampedArray(instance.exports.memory.buffer, pixels_ptr, width * height * 4);
+            const imageData = new ImageData(wasmMemoryBuffer, width, height);
+
+            // setup event loop
+            let prev = undefined;
+            function first(timestamp) {
+                prev = timestamp;
+                window.requestAnimationFrame(frame);
+            }
+            function frame(timestamp) {
+                const dt = (timestamp - prev) * 0.001;
+                prev = timestamp;
+                
+                update(dt);
+
+                ctx.putImageData(imageData, 0, 0);
+
+                window.requestAnimationFrame(frame);
+            }
+
+            window.requestAnimationFrame(first);
+        }
+
+        main();
+    </script>
+  </body>
+</html>
