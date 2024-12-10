@@ -25,6 +25,18 @@
 <script type="module">
 import init from './pkg/game.js'
 
+let paused = false;
+
+// Add event listener for spacebar
+document.addEventListener('keydown', (event) => {
+  if (event.code === 'Space') {
+    paused = !paused;
+    if (!paused) {
+      requestAnimationFrame(render);
+    }
+  }
+});
+
 async function run() {
   const wasm = await init('./pkg/game_bg.wasm');
 
@@ -43,7 +55,9 @@ async function run() {
   function render() {
     wasm.update_frame();
     ctx.putImageData(imageData, 0, 0);
-    requestAnimationFrame(render);
+    if (!paused) {
+      requestAnimationFrame(render);
+    }
   }
 
   render();

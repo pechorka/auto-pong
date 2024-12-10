@@ -49,6 +49,42 @@ const FONT_DATA: &[(&str, [u8; FONT_HEIGHT as usize])] = &[
         0b11011000,
         0b10001000,
     ]),
+    ("A", [
+        0b00100000,
+        0b01010000,
+        0b01010000,
+        0b01110000,
+        0b01110000,
+        0b01010000,
+        0b01010000,
+    ]),
+    ("S", [
+        0b00100000,
+        0b01010000,
+        0b01000000,
+        0b00110000,
+        0b00010000,
+        0b01010000,
+        0b00110000,
+    ]),
+    ("E", [
+        0b01110000,
+        0b01000000,
+        0b01000000,
+        0b01110000,
+        0b01000000,
+        0b01000000,
+        0b01110000,
+    ]),
+    ("N", [
+        0b10001000,
+        0b11001000,
+        0b10101000,
+        0b10101000,
+        0b10101000,
+        0b10111000,
+        0b10001000,
+    ]),
 ];
 
 // Function to draw a single character
@@ -88,7 +124,8 @@ fn clear_buffer() {
 
 // New function to draw text (replaces draw_logo)
 fn draw_logo(x: i32, y: i32) {
-    let text = ["D", "V", "D"];
+    // let text = ["D", "V", "D"];
+    let text = ["S","A","D","E","V","A","N","A"];
     let (r, g, b, a) = (255, 0, 255, 255); // Keep the same bright color
     
     for (i, ch) in text.iter().enumerate() {
