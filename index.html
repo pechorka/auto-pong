@@ -5,64 +5,82 @@
   <body>
     <canvas id="app" width="1600" height="900"></canvas>
     <script >
-        function make_environment(...envs) {
-            return new Proxy(envs, {
+        let ctx;
+        let allocated; // A global reference of the WASM’s memory area so that we can look up pointers
+        let function_table;
+        let update_frame = () => {};
+
+        function parseColor(color) {
+            // Color comes in as 0xAABBGGRR format
+            const a = ((color >>> 24) & 0xFF).toString(16).padStart(2, '0');  // Alpha
+            const b = ((color >>> 16) & 0xFF).toString(16).padStart(2, '0');  // Blue
+            const g = ((color >>> 8) & 0xFF).toString(16).padStart(2, '0');   // Green
+            const r = ((color >>> 0) & 0xFF).toString(16).padStart(2, '0');   // Red
+            return '#' + r + g + b + a;
+        }
+
+        const exported_js_functions = {
+            set_canvas_size: (width, height) => {
+                ctx.canvas.width = width;
+                ctx.canvas.height = height;
+            },
+            fill_rect: (x, y, w, h, color) => {
+                const unsignedColor = color >>> 0;
+                ctx.fillStyle = parseColor(unsignedColor);
+                ctx.fillRect(x, y, w, h);
+            },
+            set_update_frame: (f) => {
+                update_frame = function_table.get(Number(f));
+            },
+            clear_background: (color) => {
+                const unsignedColor = color >>> 0;
+                ctx.fillStyle = parseColor(unsignedColor);
+                ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            },
+        }
+
+        // Create the environment for the WASM file,
+        // which includes the exported JS functions for the WASM:
+        const imports = {
+            "env": new Proxy(exported_js_functions, {
                 get(target, prop, receiver) {
-                    for (let env of envs) {
-                        if (env.hasOwnProperty(prop)) {
-                            return env[prop];
-                        }
+                    if (target.hasOwnProperty(prop)) {
+                        return target[prop];
                     }
-                    return (...args) => {console.error("NOT IMPLEMENTED: "+prop, args)}
+
+                    return () => { throw new Error("Missing function: " + prop); };
+                },
+            }),
+        }
+
+
+        WebAssembly.instantiateStreaming(fetch("game.wasm"), imports).then(
+            (wasm) => {
+                console.log(wasm);
+                allocated = wasm.instance.exports.memory;
+                function_table = wasm.instance.exports.__indirect_function_table;
+
+
+                const app = document.getElementById("app");
+                ctx = app.getContext("2d");
+                ctx.fillStyle = '#333333';
+                ctx.fillRect(0, 0, app.width, app.height);
+
+                let prevTimestamp;
+                function frame(timestamp) {
+                    const deltaTime = (timestamp - prevTimestamp)*0.001;
+                    prevTimestamp = timestamp;
+                    update_frame(deltaTime);
+                    window.requestAnimationFrame(frame);
                 }
-            });
-        }
+                window.requestAnimationFrame((timestamp) => {
+                    prevTimestamp = timestamp;
+                    window.requestAnimationFrame(frame);
+                });
 
-
-        async function main() {
-            let app = document.getElementById("app");
-            let ctx = app.getContext("2d");
-
-            const response = await fetch("game.wasm");
-            const bytes = await response.arrayBuffer();
-            const {instance} = await WebAssembly.instantiate(bytes, {
-                env: make_environment()
-            });
-
-
-            const update = instance.exports.update;
-            const get_pixels = instance.exports.get_pixels;
-            const get_width = instance.exports.get_width;
-            const get_height = instance.exports.get_height;
-
-            const width = get_width();
-            const height = get_height();
-
-            const pixels_ptr = get_pixels();
-            const wasmMemoryBuffer = new Uint8ClampedArray(instance.exports.memory.buffer, pixels_ptr, width * height * 4);
-            const imageData = new ImageData(wasmMemoryBuffer, width, height);
-
-            // setup event loop
-            let prev = undefined;
-            function first(timestamp) {
-                prev = timestamp;
-                window.requestAnimationFrame(frame);
+                wasm.instance.exports.main();
             }
-            function frame(timestamp) {
-                const dt = (timestamp - prev) * 0.001;
-                prev = timestamp;
-                
-                update(dt);
-
-                ctx.putImageData(imageData, 0, 0);
-
-                window.requestAnimationFrame(frame);
-            }
-
-            window.requestAnimationFrame(first);
-        }
-
-        main();
+        )
     </script>
   </body>
 </html>
