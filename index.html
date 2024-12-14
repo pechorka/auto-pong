@@ -11,12 +11,11 @@
         let update_frame = () => {};
 
         function parseColor(color) {
-            // Color comes in as 0xAABBGGRR format
-            const a = ((color >>> 24) & 0xFF).toString(16).padStart(2, '0');  // Alpha
-            const b = ((color >>> 16) & 0xFF).toString(16).padStart(2, '0');  // Blue
-            const g = ((color >>> 8) & 0xFF).toString(16).padStart(2, '0');   // Green
-            const r = ((color >>> 0) & 0xFF).toString(16).padStart(2, '0');   // Red
-            return '#' + r + g + b + a;
+            const r = ((color>>8*3)&0xFF).toString(16).padStart(2, 0);
+            const g = ((color>>8*2)&0xFF).toString(16).padStart(2, 0);
+            const b = ((color>>8*1)&0xFF).toString(16).padStart(2, 0);
+            const a = ((color>>8*0)&0xFF).toString(16).padStart(2, 0);
+            return '#'+r+g+b+a;
         }
 
         const exported_js_functions = {

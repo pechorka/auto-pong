@@ -6,16 +6,20 @@ extern "C" {
     fn clear_background(color: u32);
 }
 
+// Color comes in as 0xRRGGBBAA format
+const BLACK: u32 = 0x000000FF;
+const RED: u32 = 0xFF0000FF;
+
 fn update_frame(dt: f32) {
     unsafe {
-        clear_background(0x0000FFFF);
-        fill_rect(0.0, 0.0, 100.0, 100.0, 0xFF0000FF);
+        clear_background(BLACK);
+        fill_rect(0.0, 0.0, 100.0, 100.0, RED);
     }
 }
 
 pub fn main() {
     unsafe {
-        set_canvas_size(800, 600);
+        set_canvas_size(1920, 1080);
         set_update_frame(update_frame);
     }
 }
