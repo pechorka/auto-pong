@@ -26,12 +26,24 @@
                 ctx.fillStyle = parseColor(unsignedColor);
                 ctx.fillRect(x, y, w, h);
             },
+            fill_rect_border: (x, y, w, h, color) => {
+                const unsignedColor = color >>> 0;
+                ctx.strokeStyle = parseColor(unsignedColor);
+                ctx.strokeRect(x, y, w, h);
+            },
             fill_circle: (x, y, r, color) => {
                 const unsignedColor = color >>> 0;
                 ctx.fillStyle = parseColor(unsignedColor);
                 ctx.beginPath();
                 ctx.arc(x, y, r, 0, 2 * Math.PI);
                 ctx.fill();
+            },
+            fill_circle_border: (x, y, r, color) => {
+                const unsignedColor = color >>> 0;
+                ctx.strokeStyle = parseColor(unsignedColor);
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, 2 * Math.PI);
+                ctx.stroke();
             },
             clear_background: (color) => {
                 const unsignedColor = color >>> 0;

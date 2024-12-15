@@ -2,7 +2,9 @@ use std::f32::consts::PI;
 extern "C" {
     fn set_canvas_size(width: usize, height: usize);
     fn fill_rect(x: f32, y: f32, w: f32, h: f32, color: u32);
+    fn fill_rect_border(x: f32, y: f32, w: f32, h: f32, color: u32);
     fn fill_circle(x: f32, y: f32, r: f32, color: u32);
+    fn fill_circle_border(x: f32, y: f32, r: f32, color: u32);
     fn clear_background(color: u32);
 }
 
@@ -10,6 +12,7 @@ extern "C" {
 const BLACK: u32 = 0x000000FF;
 const RED: u32 = 0xFF0000FF;
 const BLUE: u32 = 0x0000FFFF;
+const WHITE: u32 = 0xFFFFFFFF;
 
 const BOARD_HEIGHT: usize = 20;
 const BOARD_WIDTH: usize = BOARD_HEIGHT * 2;
@@ -106,6 +109,7 @@ pub fn update_frame(dt: f32) {
                 let player_index = BOARD[by][bx];
                 let color = PLAYERS[player_index].color;
                 fill_rect(x, y, w, h, color);
+                fill_rect_border(x, y, w, h, BLACK);
             }
         }
 
@@ -126,6 +130,7 @@ pub fn update_frame(dt: f32) {
             }
 
             fill_circle(player.position.x, player.position.y, PLAYER_RADIUS, player.color);
+            fill_circle_border(player.position.x, player.position.y, PLAYER_RADIUS, WHITE);
         }
     }
 }
