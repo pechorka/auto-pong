@@ -5,7 +5,12 @@ extern "C" {
     fn fill_rect_border(x: f32, y: f32, w: f32, h: f32, color: u32);
     fn fill_circle(x: f32, y: f32, r: f32, color: u32);
     fn fill_circle_border(x: f32, y: f32, r: f32, color: u32);
+    fn draw_text(x: f32, y: f32, textPtr: *const u8, textLen: usize, color: u32);
     fn clear_background(color: u32);
+}
+
+unsafe fn display_text(text: &str, x: f32, y: f32, color: u32) {
+    draw_text(x, y, text.as_ptr(), text.len(), color);
 }
 
 // Color comes in as 0xRRGGBBAA format
@@ -132,6 +137,9 @@ pub fn update_frame(dt: f32) {
             fill_circle(player.position.x, player.position.y, PLAYER_RADIUS, player.color);
             fill_circle_border(player.position.x, player.position.y, PLAYER_RADIUS, WHITE);
         }
+
+        let fps = 1.0 / dt;
+        display_text(&format!("FPS: {}", fps.round()), 20.0, 20.0, WHITE);
     }
 }
 

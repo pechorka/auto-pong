@@ -16,6 +16,11 @@
             return '#'+r+g+b+a;
         }
 
+        function rustStringToJsString(ptr, len) {
+            const str = new Uint8Array(allocated.buffer, ptr, len);
+            return String.fromCharCode(...str);
+        }
+
         const exported_js_functions = {
             set_canvas_size: (width, height) => {
                 ctx.canvas.width = width;
@@ -44,6 +49,12 @@
                 ctx.beginPath();
                 ctx.arc(x, y, r, 0, 2 * Math.PI);
                 ctx.stroke();
+            },
+            draw_text: (x, y, textPtr, textLen, color) => {
+                const unsignedColor = color >>> 0;
+                ctx.fillStyle = parseColor(unsignedColor);
+                ctx.font = "20px Arial";
+                ctx.fillText(rustStringToJsString(textPtr, textLen), x, y);
             },
             clear_background: (color) => {
                 const unsignedColor = color >>> 0;
