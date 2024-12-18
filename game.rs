@@ -7,16 +7,23 @@ extern "C" {
     fn fill_circle_border(x: f32, y: f32, r: f32, color: u32);
     fn draw_text(x: f32, y: f32, textPtr: *const u8, textLen: usize, color: u32);
     fn clear_background(color: u32);
+
+    fn console_log(textPtr: *const u8, textLen: usize);
 }
 
 unsafe fn display_text(text: &str, x: f32, y: f32, color: u32) {
     draw_text(x, y, text.as_ptr(), text.len(), color);
 }
 
+unsafe fn log_text(text: &str) {
+    console_log(text.as_ptr(), text.len());
+}
+
 // Color comes in as 0xRRGGBBAA format
 const BLACK: u32 = 0x000000FF;
 const RED: u32 = 0xFF0000FF;
 const BLUE: u32 = 0x0000FFFF;
+const GREEN: u32 = 0x00FF00FF;
 const WHITE: u32 = 0xFFFFFFFF;
 
 const BOARD_HEIGHT: usize = 20;
@@ -54,7 +61,7 @@ static mut PLAYERS: [Player; 2] = [
             x: 0.0, 
             y: 0.0 
         },
-        color: PLAYER_1_COLOR
+        color: PLAYER_1_COLOR,
     },
     Player { 
         position: Vector2 { 
@@ -65,13 +72,12 @@ static mut PLAYERS: [Player; 2] = [
             x: 0.0, 
             y: 0.0 
         },
-        color: PLAYER_2_COLOR
+        color: PLAYER_2_COLOR,
     },
 ];
 
 // board is matrix of BOARD_WIDTH * BOARD_HEIGHT filled with indices of the players
 static mut BOARD: [[usize; BOARD_WIDTH]; BOARD_HEIGHT] = [[0; BOARD_WIDTH]; BOARD_HEIGHT];
-
 
 fn rect_circle_collision(l: f32, r: f32, t: f32, b: f32, px: f32, py: f32, rad: f32) -> bool {
     let x = l.min(r.max(px)).max(l);
@@ -82,19 +88,22 @@ fn rect_circle_collision(l: f32, r: f32, t: f32, b: f32, px: f32, py: f32, rad: 
 }
 
 unsafe fn player_eats_enemy_cell(px: f32, py: f32, player_index: usize) -> bool {
-    let bx = (px - PLAYER_RADIUS/CELL_SIZE) as usize;
-    let by = (py - PLAYER_RADIUS/CELL_SIZE) as usize;
-    let tx = (px + PLAYER_RADIUS/CELL_SIZE) as usize;
-    let ty = (py + PLAYER_RADIUS/CELL_SIZE) as usize;
+    let bx = (px - PLAYER_RADIUS/CELL_SIZE).floor() as usize;
+    let by = (py - PLAYER_RADIUS/CELL_SIZE).floor() as usize;
+    let tx = (px + PLAYER_RADIUS/CELL_SIZE).floor() as usize;
+    let ty = (py + PLAYER_RADIUS/CELL_SIZE).floor() as usize;
     for x in bx..tx {
         for y in by..ty {
             let l = x as f32 * CELL_SIZE;
             let r = (x + 1) as f32 * CELL_SIZE;
             let t = y as f32 * CELL_SIZE;
             let b = (y + 1) as f32 * CELL_SIZE;
-            if rect_circle_collision(l, r, t, b, px, py, PLAYER_RADIUS) && BOARD[y][x] != player_index {
-                BOARD[y][x] = player_index;
-                return true;
+            if rect_circle_collision(l, r, t, b, px, py, PLAYER_RADIUS) {
+                log_text(&format!("player_eats_enemy_cell: l:{} r:{} t:{} b:{}, px:{} py:{}, player_index:{}, board:{}", l, r, t, b, px, py, player_index, BOARD[y][x]));
+                if BOARD[y][x] != player_index {
+                    BOARD[y][x] = player_index;
+                    return true;
+                }
             }
         }
     }
@@ -114,7 +123,6 @@ pub fn update_frame(dt: f32) {
                 let player_index = BOARD[by][bx];
                 let color = PLAYERS[player_index].color;
                 fill_rect(x, y, w, h, color);
-                fill_rect_border(x, y, w, h, BLACK);
             }
         }
 
@@ -162,9 +170,9 @@ pub fn main() {
         for x in 0..BOARD_WIDTH {
             for y in 0..BOARD_HEIGHT {
                 if x < BOARD_WIDTH/2 {
-                    BOARD[y][x] = 1;
-                } else {
                     BOARD[y][x] = 0;
+                } else {
+                    BOARD[y][x] = 1;
                 }
             }
         }
