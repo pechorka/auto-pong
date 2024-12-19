@@ -78,6 +78,11 @@ pub fn update_frame(dt: f32) {
     GAME_STATE.get_or_init(|| Mutex::new(GameState::new())).lock().unwrap().update(dt);
 }
 
+#[no_mangle]
+pub fn set_player_speed(speed: f32) {
+    GAME_STATE.get_or_init(|| Mutex::new(GameState::new())).lock().unwrap().set_player_speed(speed);
+}
+
 fn main() {}
 
 // Color comes in as 0xRRGGBBAA format
@@ -93,7 +98,7 @@ const SCREEN_WIDTH: f32 = BOARD_WIDTH as f32 * CELL_SIZE;
 const SCREEN_HEIGHT: f32 = BOARD_HEIGHT as f32 * CELL_SIZE;
 
 const PLAYER_RADIUS: f32 = CELL_SIZE as f32;
-const PLAYER_SPEED: f32 = 500.0;
+const DEFAULT_PLAYER_SPEED: f32 = 500.0;
 
 const BACKGROUND_COLOR: u32 = BLACK;
 const PLAYER_1_COLOR: u32 = RED;
@@ -110,9 +115,19 @@ struct Vector2 {
 #[derive(Clone)]
 struct Player {
     position: Vector2,
-    velocity: Vector2,
+    direction: Vector2,
+    speed: f32,
     color: u32,
     cell_color: u32,
+}
+
+impl Player {
+    fn velocity(&self) -> Vector2 {
+        Vector2 {
+            x: self.direction.x * self.speed,
+            y: self.direction.y * self.speed,
+        }
+    }
 }
 
 // Game state structure to manage mutable state
@@ -124,22 +139,23 @@ struct GameState {
 impl GameState {
     fn new() -> Self {
         Self {
-            players: Self::new_players(),
+            players: Self::new_players(DEFAULT_PLAYER_SPEED),
             board: Self::new_board(),
         }
     }
 
-    fn new_players() -> [Player; 2] {
+    fn new_players(player_speed: f32) -> [Player; 2] {
         [
             Player {
                 position: Vector2 { 
                     x: SCREEN_WIDTH / 4.0, 
                     y: SCREEN_HEIGHT / 2.0 
                 },
-                velocity: Vector2 { 
-                    x: (PI * 0.25).cos() * PLAYER_SPEED, 
-                    y: (PI * 0.25).sin() * PLAYER_SPEED 
+                direction: Vector2 { 
+                    x: (PI * 0.25).cos(), 
+                    y: (PI * 0.25).sin() 
                 },
+                speed: player_speed,
                 color: PLAYER_1_COLOR,
                 cell_color: PLAYER_1_CELL_COLOR,
             },
@@ -148,10 +164,11 @@ impl GameState {
                     x: SCREEN_WIDTH / 4.0 * 3.0, 
                     y: SCREEN_HEIGHT / 2.0 
                 },
-                velocity: Vector2 { 
-                    x: (PI * 1.25).cos() * PLAYER_SPEED, 
-                    y: (PI * 1.25).sin() * PLAYER_SPEED 
+                direction: Vector2 { 
+                    x: (PI * 1.25).cos(), 
+                    y: (PI * 1.25).sin() 
                 },
+                speed: player_speed,
                 color: PLAYER_2_COLOR,
                 cell_color: PLAYER_2_CELL_COLOR,
             },
@@ -210,16 +227,17 @@ impl GameState {
         for i in 0..self.players.len() {
             // Calculate new positions first
             let current_pos = self.players[i].position;
-            let current_vel = self.players[i].velocity;
+            let current_dir = self.players[i].direction;
+            let current_vel = self.players[i].velocity();
             let mut new_pos = current_pos;
-            let mut new_vel = current_vel;
+            let mut new_dir = current_dir;
             
             // Update X position
             let nx = current_pos.x + current_vel.x * dt;
             if nx - PLAYER_RADIUS < 0.0 || 
                nx + PLAYER_RADIUS > SCREEN_WIDTH as f32 || 
                self.player_eats_enemy_cell(nx, current_pos.y, i) {
-                new_vel.x *= -1.0;
+                new_dir.x *= -1.0;
             } else {
                 new_pos.x = nx;
             }
@@ -229,14 +247,14 @@ impl GameState {
             if ny - PLAYER_RADIUS < 0.0 || 
                ny + PLAYER_RADIUS > SCREEN_HEIGHT as f32 || 
                self.player_eats_enemy_cell(new_pos.x, ny, i) {
-                new_vel.y *= -1.0;
+                new_dir.y *= -1.0;
             } else {
                 new_pos.y = ny;
             }
 
             // Update player state
             self.players[i].position = new_pos;
-            self.players[i].velocity = new_vel;
+            self.players[i].direction = new_dir;
 
             // Draw player
             js::fill_circle(new_pos.x, new_pos.y, PLAYER_RADIUS, self.players[i].color);
@@ -245,6 +263,12 @@ impl GameState {
 
         let fps = 1.0 / dt;
         js::draw_text(&format!("FPS: {}", fps.round()), 20.0, 20.0, WHITE);
+    }
+
+    fn set_player_speed(&mut self, speed: f32) {
+        for player in &mut self.players {
+            player.speed = speed;
+        }
     }
 }
 

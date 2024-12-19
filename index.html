@@ -4,6 +4,10 @@
   </head>
   <body>
     <canvas id="app"></canvas>
+    <div>
+        <label for="player-speed">Player speed:</label>
+        <input type="range" id="player-speed" min="100" max="1000" value="500">
+    </div>
     <script >
         let ctx;
         let allocated; // A global reference of the WASM’s memory area so that we can look up pointers
@@ -92,7 +96,7 @@
                 ctx = app.getContext("2d");
 
                 update_frame = wasm.instance.exports.update_frame;
-
+                set_player_speed = wasm.instance.exports.set_player_speed;
                 let prevTimestamp;
                 function frame(timestamp) {
                     const deltaTime = (timestamp - prevTimestamp)*0.001;
@@ -103,6 +107,10 @@
                 window.requestAnimationFrame((timestamp) => {
                     prevTimestamp = timestamp;
                     window.requestAnimationFrame(frame);
+                });
+
+                document.getElementById("player-speed").addEventListener("input", (event) => {
+                    set_player_speed(event.target.value);
                 });
             }
         )
