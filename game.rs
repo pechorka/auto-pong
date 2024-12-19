@@ -1,38 +1,90 @@
 use std::f32::consts::PI;
+use std::sync::Mutex;
+use std::sync::OnceLock;
 
 // External JS functions wrapper
 mod js {
     #[link(wasm_import_module = "env")]
     extern "C" {
-        pub fn set_canvas_size(width: usize, height: usize);
-        pub fn fill_rect(x: f32, y: f32, w: f32, h: f32, color: u32);
-        pub fn fill_rect_border(x: f32, y: f32, w: f32, h: f32, color: u32);
-        pub fn fill_circle(x: f32, y: f32, r: f32, color: u32);
-        pub fn fill_circle_border(x: f32, y: f32, r: f32, color: u32);
-        pub fn draw_text(x: f32, y: f32, textPtr: *const u8, textLen: usize, color: u32);
-        pub fn clear_background(color: u32);
-        pub fn console_log(textPtr: *const u8, textLen: usize);
+        fn extern_set_canvas_size(width: usize, height: usize);
+        fn extern_fill_rect(x: f32, y: f32, w: f32, h: f32, color: u32);
+        fn extern_fill_rect_border(x: f32, y: f32, w: f32, h: f32, color: u32);
+        fn extern_fill_circle(x: f32, y: f32, r: f32, color: u32);
+        fn extern_fill_circle_border(x: f32, y: f32, r: f32, color: u32);
+        fn extern_draw_text(x: f32, y: f32, textPtr: *const u8, textLen: usize, color: u32);
+        fn extern_clear_background(color: u32);
+        fn extern_console_log(textPtr: *const u8, textLen: usize);
+    }
+
+    // Safe wrapper functions
+
+    pub fn set_canvas_size(width: usize, height: usize) {
+        unsafe {
+            extern_set_canvas_size(width, height);
+        }
+    }
+
+    pub fn fill_rect(x: f32, y: f32, w: f32, h: f32, color: u32) {
+        unsafe {
+            extern_fill_rect(x, y, w, h, color);
+        }
+    }
+
+    pub fn fill_rect_border(x: f32, y: f32, w: f32, h: f32, color: u32) {
+        unsafe {
+            extern_fill_rect_border(x, y, w, h, color);
+        }
+    }
+
+    pub fn fill_circle(x: f32, y: f32, r: f32, color: u32) {
+        unsafe {
+            extern_fill_circle(x, y, r, color);
+        }
+    }
+
+    pub fn fill_circle_border(x: f32, y: f32, r: f32, color: u32) {
+        unsafe {
+            extern_fill_circle_border(x, y, r, color);
+        }
+    }
+
+    pub fn draw_text(text: &str, x: f32, y: f32, color: u32) {
+        unsafe {
+            extern_draw_text(x, y, text.as_ptr(), text.len(), color);
+        }
+    }
+
+    pub fn clear_background(color: u32) {
+        unsafe {
+            extern_clear_background(color);
+        }
+    }
+
+    pub fn console_log(text: &str) {
+        unsafe {
+            extern_console_log(text.as_ptr(), text.len());
+        }
     }
 }
 
-// Safe wrapper functions
-fn display_text(text: &str, x: f32, y: f32, color: u32) {
-    unsafe {
-        js::draw_text(x, y, text.as_ptr(), text.len(), color);
-    }
+
+
+static GAME_STATE: OnceLock<Mutex<GameState>> = OnceLock::new();
+
+#[no_mangle]
+pub fn update_frame(dt: f32) {
+    GAME_STATE.get_or_init(|| Mutex::new(GameState::new())).lock().unwrap().update(dt);
 }
 
-fn log_text(text: &str) {
-    unsafe {
-        js::console_log(text.as_ptr(), text.len());
-    }
+
+pub fn main() {
+    GAME_STATE.get_or_init(|| Mutex::new(GameState::new())).lock().unwrap().initialize();
 }
 
 // Color comes in as 0xRRGGBBAA format
 const BLACK: u32 = 0x000000FF;
 const RED: u32 = 0xFF0000FF;
 const BLUE: u32 = 0x0000FFFF;
-const GREEN: u32 = 0x00FF00FF;
 const WHITE: u32 = 0xFFFFFFFF;
 
 const BOARD_HEIGHT: usize = 20;
@@ -112,7 +164,7 @@ impl GameState {
     }
 
     fn update(&mut self, dt: f32) {
-        unsafe { js::clear_background(BACKGROUND_COLOR) };
+        js::clear_background(BACKGROUND_COLOR);
 
         // Draw board first
         for by in 0..BOARD_HEIGHT {
@@ -123,10 +175,8 @@ impl GameState {
                 let h = CELL_SIZE;
                 let player_index = self.board[by][bx];
                 let color = self.players[player_index].cell_color;
-                unsafe {
-                    js::fill_rect(x, y, w, h, color);
-                    js::fill_rect_border(x, y, w, h, BLACK);
-                }
+                js::fill_rect(x, y, w, h, color);
+                js::fill_rect_border(x, y, w, h, BLACK);
             }
         }
 
@@ -163,18 +213,16 @@ impl GameState {
             self.players[i].velocity = new_vel;
 
             // Draw player
-            unsafe {
-                js::fill_circle(new_pos.x, new_pos.y, PLAYER_RADIUS, self.players[i].color);
-                js::fill_circle_border(new_pos.x, new_pos.y, PLAYER_RADIUS, WHITE);
-            }
+            js::fill_circle(new_pos.x, new_pos.y, PLAYER_RADIUS, self.players[i].color);
+            js::fill_circle_border(new_pos.x, new_pos.y, PLAYER_RADIUS, WHITE);
         }
 
         let fps = 1.0 / dt;
-        display_text(&format!("FPS: {}", fps.round()), 20.0, 20.0, WHITE);
+        js::draw_text(&format!("FPS: {}", fps.round()), 20.0, 20.0, WHITE);
     }
 
     fn initialize(&mut self) {
-        unsafe { js::set_canvas_size(SCREEN_WIDTH as usize, SCREEN_HEIGHT as usize) };
+        js::set_canvas_size(SCREEN_WIDTH as usize, SCREEN_HEIGHT as usize);
 
         // Initialize players
         self.players[0].position.x = SCREEN_WIDTH / 4.0;
@@ -196,25 +244,5 @@ impl GameState {
     }
 }
 
-// Static game state
-static mut GAME_STATE: Option<GameState> = None;
 
-#[no_mangle]
-pub fn update_frame(dt: f32) {
-    unsafe {
-        if let Some(game_state) = &mut GAME_STATE {
-            game_state.update(dt);
-        }
-    }
-}
-
-
-pub fn main() {
-    unsafe {
-        GAME_STATE = Some(GameState::new());
-        if let Some(game_state) = &mut GAME_STATE {
-            game_state.initialize();
-        }
-    }
-}
 

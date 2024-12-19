@@ -22,46 +22,46 @@
         }
 
         const exported_js_functions = {
-            set_canvas_size: (width, height) => {
+            extern_set_canvas_size: (width, height) => {
                 ctx.canvas.width = width;
                 ctx.canvas.height = height;
             },
-            fill_rect: (x, y, w, h, color) => {
+            extern_fill_rect: (x, y, w, h, color) => {
                 const unsignedColor = color >>> 0;
                 ctx.fillStyle = parseColor(unsignedColor);
                 ctx.fillRect(x, y, w, h);
             },
-            fill_rect_border: (x, y, w, h, color) => {
+            extern_fill_rect_border: (x, y, w, h, color) => {
                 const unsignedColor = color >>> 0;
                 ctx.strokeStyle = parseColor(unsignedColor);
                 ctx.strokeRect(x, y, w, h);
             },
-            fill_circle: (x, y, r, color) => {
+            extern_fill_circle: (x, y, r, color) => {
                 const unsignedColor = color >>> 0;
                 ctx.fillStyle = parseColor(unsignedColor);
                 ctx.beginPath();
                 ctx.arc(x, y, r, 0, 2 * Math.PI);
                 ctx.fill();
             },
-            fill_circle_border: (x, y, r, color) => {
+            extern_fill_circle_border: (x, y, r, color) => {
                 const unsignedColor = color >>> 0;
                 ctx.strokeStyle = parseColor(unsignedColor);
                 ctx.beginPath();
                 ctx.arc(x, y, r, 0, 2 * Math.PI);
                 ctx.stroke();
             },
-            draw_text: (x, y, textPtr, textLen, color) => {
+            extern_draw_text: (x, y, textPtr, textLen, color) => {
                 const unsignedColor = color >>> 0;
                 ctx.fillStyle = parseColor(unsignedColor);
                 ctx.font = "20px Arial";
                 ctx.fillText(rustStringToJsString(textPtr, textLen), x, y);
             },
-            clear_background: (color) => {
+            extern_clear_background: (color) => {
                 const unsignedColor = color >>> 0;
                 ctx.fillStyle = parseColor(unsignedColor);
                 ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
             },
-            console_log: (textPtr, textLen) => {
+            extern_console_log: (textPtr, textLen) => {
                 console.log(rustStringToJsString(textPtr, textLen));
             },
         }
