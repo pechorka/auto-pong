@@ -13,6 +13,7 @@ mod js {
         fn extern_fill_circle_border(x: f32, y: f32, r: f32, color: u32);
         fn extern_draw_text(x: f32, y: f32, textPtr: *const u8, textLen: usize, color: u32);
         fn extern_clear_background(color: u32);
+        #[allow(dead_code)]
         fn extern_console_log(textPtr: *const u8, textLen: usize);
     }
 
@@ -60,6 +61,7 @@ mod js {
         }
     }
 
+    #[allow(dead_code)]
     pub fn console_log(text: &str) {
         unsafe {
             extern_console_log(text.as_ptr(), text.len());
@@ -76,10 +78,7 @@ pub fn update_frame(dt: f32) {
     GAME_STATE.get_or_init(|| Mutex::new(GameState::new())).lock().unwrap().update(dt);
 }
 
-
-pub fn main() {
-    GAME_STATE.get_or_init(|| Mutex::new(GameState::new())).lock().unwrap().initialize();
-}
+fn main() {}
 
 // Color comes in as 0xRRGGBBAA format
 const BLACK: u32 = 0x000000FF;
@@ -125,22 +124,48 @@ struct GameState {
 impl GameState {
     fn new() -> Self {
         Self {
-            players: [
-                Player {
-                    position: Vector2 { x: 0.0, y: 0.0 },
-                    velocity: Vector2 { x: 0.0, y: 0.0 },
-                    color: PLAYER_1_COLOR,
-                    cell_color: PLAYER_1_CELL_COLOR,
-                },
-                Player {
-                    position: Vector2 { x: 0.0, y: 0.0 },
-                    velocity: Vector2 { x: 0.0, y: 0.0 },
-                    color: PLAYER_2_COLOR,
-                    cell_color: PLAYER_2_CELL_COLOR,
-                },
-            ],
-            board: [[0; BOARD_WIDTH]; BOARD_HEIGHT],
+            players: Self::new_players(),
+            board: Self::new_board(),
         }
+    }
+
+    fn new_players() -> [Player; 2] {
+        [
+            Player {
+                position: Vector2 { 
+                    x: SCREEN_WIDTH / 4.0, 
+                    y: SCREEN_HEIGHT / 2.0 
+                },
+                velocity: Vector2 { 
+                    x: (PI * 0.25).cos() * PLAYER_SPEED, 
+                    y: (PI * 0.25).sin() * PLAYER_SPEED 
+                },
+                color: PLAYER_1_COLOR,
+                cell_color: PLAYER_1_CELL_COLOR,
+            },
+            Player {
+                position: Vector2 { 
+                    x: SCREEN_WIDTH / 4.0 * 3.0, 
+                    y: SCREEN_HEIGHT / 2.0 
+                },
+                velocity: Vector2 { 
+                    x: (PI * 1.25).cos() * PLAYER_SPEED, 
+                    y: (PI * 1.25).sin() * PLAYER_SPEED 
+                },
+                color: PLAYER_2_COLOR,
+                cell_color: PLAYER_2_CELL_COLOR,
+            },
+        ]
+    }
+
+    fn new_board() -> [[usize; BOARD_WIDTH]; BOARD_HEIGHT] {
+        let mut board = [[0; BOARD_WIDTH]; BOARD_HEIGHT];
+        for x in 0..BOARD_WIDTH {
+            for y in 0..BOARD_HEIGHT {
+                board[y][x] = if x < BOARD_WIDTH/2 { 0 } else { 1 };
+            }
+        }
+        board
     }
 
     fn player_eats_enemy_cell(&mut self, px: f32, py: f32, player_index: usize) -> bool {
@@ -164,6 +189,7 @@ impl GameState {
     }
 
     fn update(&mut self, dt: f32) {
+        js::set_canvas_size(SCREEN_WIDTH as usize, SCREEN_HEIGHT as usize);
         js::clear_background(BACKGROUND_COLOR);
 
         // Draw board first
@@ -219,28 +245,6 @@ impl GameState {
 
         let fps = 1.0 / dt;
         js::draw_text(&format!("FPS: {}", fps.round()), 20.0, 20.0, WHITE);
-    }
-
-    fn initialize(&mut self) {
-        js::set_canvas_size(SCREEN_WIDTH as usize, SCREEN_HEIGHT as usize);
-
-        // Initialize players
-        self.players[0].position.x = SCREEN_WIDTH / 4.0;
-        self.players[0].position.y = SCREEN_HEIGHT / 2.0;
-        self.players[0].velocity.x = (PI * 0.25).cos() * PLAYER_SPEED;
-        self.players[0].velocity.y = (PI * 0.25).sin() * PLAYER_SPEED;
-
-        self.players[1].position.x = SCREEN_WIDTH / 4.0 * 3.0;
-        self.players[1].position.y = SCREEN_HEIGHT / 2.0;
-        self.players[1].velocity.x = (PI * 1.25).cos() * PLAYER_SPEED;
-        self.players[1].velocity.y = (PI * 1.25).sin() * PLAYER_SPEED;
-
-        // Initialize board
-        for x in 0..BOARD_WIDTH {
-            for y in 0..BOARD_HEIGHT {
-                self.board[y][x] = if x < BOARD_WIDTH/2 { 0 } else { 1 };
-            }
-        }
     }
 }
 

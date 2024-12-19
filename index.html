@@ -92,7 +92,6 @@
                 ctx = app.getContext("2d");
 
                 update_frame = wasm.instance.exports.update_frame;
-                main = wasm.instance.exports.main;
 
                 let prevTimestamp;
                 function frame(timestamp) {
@@ -105,8 +104,6 @@
                     prevTimestamp = timestamp;
                     window.requestAnimationFrame(frame);
                 });
-
-                main();
             }
         )
     </script>
