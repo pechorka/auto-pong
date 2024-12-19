@@ -1,22 +1,31 @@
 use std::f32::consts::PI;
-extern "C" {
-    fn set_canvas_size(width: usize, height: usize);
-    fn fill_rect(x: f32, y: f32, w: f32, h: f32, color: u32);
-    fn fill_rect_border(x: f32, y: f32, w: f32, h: f32, color: u32);
-    fn fill_circle(x: f32, y: f32, r: f32, color: u32);
-    fn fill_circle_border(x: f32, y: f32, r: f32, color: u32);
-    fn draw_text(x: f32, y: f32, textPtr: *const u8, textLen: usize, color: u32);
-    fn clear_background(color: u32);
 
-    fn console_log(textPtr: *const u8, textLen: usize);
+// External JS functions wrapper
+mod js {
+    #[link(wasm_import_module = "env")]
+    extern "C" {
+        pub fn set_canvas_size(width: usize, height: usize);
+        pub fn fill_rect(x: f32, y: f32, w: f32, h: f32, color: u32);
+        pub fn fill_rect_border(x: f32, y: f32, w: f32, h: f32, color: u32);
+        pub fn fill_circle(x: f32, y: f32, r: f32, color: u32);
+        pub fn fill_circle_border(x: f32, y: f32, r: f32, color: u32);
+        pub fn draw_text(x: f32, y: f32, textPtr: *const u8, textLen: usize, color: u32);
+        pub fn clear_background(color: u32);
+        pub fn console_log(textPtr: *const u8, textLen: usize);
+    }
 }
 
-unsafe fn display_text(text: &str, x: f32, y: f32, color: u32) {
-    draw_text(x, y, text.as_ptr(), text.len(), color);
+// Safe wrapper functions
+fn display_text(text: &str, x: f32, y: f32, color: u32) {
+    unsafe {
+        js::draw_text(x, y, text.as_ptr(), text.len(), color);
+    }
 }
 
-unsafe fn log_text(text: &str) {
-    console_log(text.as_ptr(), text.len());
+fn log_text(text: &str) {
+    unsafe {
+        js::console_log(text.as_ptr(), text.len());
+    }
 }
 
 // Color comes in as 0xRRGGBBAA format
@@ -41,11 +50,13 @@ const PLAYER_2_COLOR: u32 = BLUE;
 const PLAYER_1_CELL_COLOR: u32 = PLAYER_2_COLOR;
 const PLAYER_2_CELL_COLOR: u32 = PLAYER_1_COLOR;
 
+#[derive(Clone, Copy)]
 struct Vector2 {
     x: f32,
     y: f32,
 }
 
+#[derive(Clone)]
 struct Player {
     position: Vector2,
     velocity: Vector2,
@@ -53,122 +64,156 @@ struct Player {
     cell_color: u32,
 }
 
-// players array
-static mut PLAYERS: [Player; 2] = [
-    Player { 
-        position: Vector2 { 
-            x: 0.0, 
-            y: 0.0 
-        }, 
-        velocity: Vector2 { 
-            x: 0.0, 
-            y: 0.0 
-        },
-        color: PLAYER_1_COLOR,
-        cell_color: PLAYER_1_CELL_COLOR,
-    },
-    Player { 
-        position: Vector2 { 
-            x: 0.0, 
-            y: 0.0 
-        }, 
-        velocity: Vector2 { 
-            x: 0.0, 
-            y: 0.0 
-        },
-        color: PLAYER_2_COLOR,
-        cell_color: PLAYER_2_CELL_COLOR,
-    },
-];
-
-// board is matrix of BOARD_WIDTH * BOARD_HEIGHT filled with indices of the players
-static mut BOARD: [[usize; BOARD_WIDTH]; BOARD_HEIGHT] = [[0; BOARD_WIDTH]; BOARD_HEIGHT];
-
-unsafe fn player_eats_enemy_cell(px: f32, py: f32, player_index: usize) -> bool {
-    let bx = ((px - PLAYER_RADIUS)/CELL_SIZE).floor() as usize;
-    let by = ((py - PLAYER_RADIUS)/CELL_SIZE).floor() as usize;
-    let tx = ((px + PLAYER_RADIUS)/CELL_SIZE).floor() as usize;
-    let ty = ((py + PLAYER_RADIUS)/CELL_SIZE).floor() as usize;
-    for x in bx..tx {
-        for y in by..ty {
-            if y>=BOARD_HEIGHT || x>=BOARD_WIDTH {
-                continue;
-            }
-            if BOARD[y][x] != player_index {
-                BOARD[y][x] = player_index;
-                return true;
-            }
-        }
-    }
-    return false;
+// Game state structure to manage mutable state
+struct GameState {
+    players: [Player; 2],
+    board: [[usize; BOARD_WIDTH]; BOARD_HEIGHT],
 }
 
-#[no_mangle]
-pub fn update_frame(dt: f32) {
-    unsafe {
-        clear_background(BACKGROUND_COLOR);
+impl GameState {
+    fn new() -> Self {
+        Self {
+            players: [
+                Player {
+                    position: Vector2 { x: 0.0, y: 0.0 },
+                    velocity: Vector2 { x: 0.0, y: 0.0 },
+                    color: PLAYER_1_COLOR,
+                    cell_color: PLAYER_1_CELL_COLOR,
+                },
+                Player {
+                    position: Vector2 { x: 0.0, y: 0.0 },
+                    velocity: Vector2 { x: 0.0, y: 0.0 },
+                    color: PLAYER_2_COLOR,
+                    cell_color: PLAYER_2_CELL_COLOR,
+                },
+            ],
+            board: [[0; BOARD_WIDTH]; BOARD_HEIGHT],
+        }
+    }
+
+    fn player_eats_enemy_cell(&mut self, px: f32, py: f32, player_index: usize) -> bool {
+        let bx = ((px - PLAYER_RADIUS)/CELL_SIZE).floor() as usize;
+        let by = ((py - PLAYER_RADIUS)/CELL_SIZE).floor() as usize;
+        let tx = ((px + PLAYER_RADIUS)/CELL_SIZE).floor() as usize;
+        let ty = ((py + PLAYER_RADIUS)/CELL_SIZE).floor() as usize;
+        
+        for x in bx..tx {
+            for y in by..ty {
+                if y >= BOARD_HEIGHT || x >= BOARD_WIDTH {
+                    continue;
+                }
+                if self.board[y][x] != player_index {
+                    self.board[y][x] = player_index;
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    fn update(&mut self, dt: f32) {
+        unsafe { js::clear_background(BACKGROUND_COLOR) };
+
+        // Draw board first
         for by in 0..BOARD_HEIGHT {
             for bx in 0..BOARD_WIDTH {
-                let x = bx as f32 * CELL_SIZE ;
-                let y = by as f32 * CELL_SIZE ;
-                let w = CELL_SIZE ;
-                let h = CELL_SIZE ;
-                let player_index = BOARD[by][bx];
-                let color = PLAYERS[player_index].cell_color;
-                fill_rect(x, y, w, h, color);
-                fill_rect_border(x, y, w, h, BLACK);
+                let x = bx as f32 * CELL_SIZE;
+                let y = by as f32 * CELL_SIZE;
+                let w = CELL_SIZE;
+                let h = CELL_SIZE;
+                let player_index = self.board[by][bx];
+                let color = self.players[player_index].cell_color;
+                unsafe {
+                    js::fill_rect(x, y, w, h, color);
+                    js::fill_rect_border(x, y, w, h, BLACK);
+                }
             }
         }
 
-        for (i, player) in PLAYERS.iter_mut().enumerate() {
-            let nx = player.position.x + player.velocity.x * dt;
+        // Update players
+        for i in 0..self.players.len() {
+            // Calculate new positions first
+            let current_pos = self.players[i].position;
+            let current_vel = self.players[i].velocity;
+            let mut new_pos = current_pos;
+            let mut new_vel = current_vel;
             
-            if nx-PLAYER_RADIUS < 0.0 || nx+PLAYER_RADIUS > SCREEN_WIDTH as f32 || player_eats_enemy_cell(nx, player.position.y, i) {
-                player.velocity.x *= -1.0;
+            // Update X position
+            let nx = current_pos.x + current_vel.x * dt;
+            if nx - PLAYER_RADIUS < 0.0 || 
+               nx + PLAYER_RADIUS > SCREEN_WIDTH as f32 || 
+               self.player_eats_enemy_cell(nx, current_pos.y, i) {
+                new_vel.x *= -1.0;
             } else {
-                player.position.x = nx;
+                new_pos.x = nx;
             }
             
-            let ny = player.position.y + player.velocity.y * dt;
-            if ny-PLAYER_RADIUS < 0.0 || ny+PLAYER_RADIUS > SCREEN_HEIGHT as f32 || player_eats_enemy_cell(player.position.x, ny, i) {
-                player.velocity.y *= -1.0;
+            // Update Y position
+            let ny = current_pos.y + current_vel.y * dt;
+            if ny - PLAYER_RADIUS < 0.0 || 
+               ny + PLAYER_RADIUS > SCREEN_HEIGHT as f32 || 
+               self.player_eats_enemy_cell(new_pos.x, ny, i) {
+                new_vel.y *= -1.0;
             } else {
-                player.position.y = ny;
+                new_pos.y = ny;
             }
 
-            fill_circle(player.position.x, player.position.y, PLAYER_RADIUS, player.color);
-            fill_circle_border(player.position.x, player.position.y, PLAYER_RADIUS, WHITE);
+            // Update player state
+            self.players[i].position = new_pos;
+            self.players[i].velocity = new_vel;
+
+            // Draw player
+            unsafe {
+                js::fill_circle(new_pos.x, new_pos.y, PLAYER_RADIUS, self.players[i].color);
+                js::fill_circle_border(new_pos.x, new_pos.y, PLAYER_RADIUS, WHITE);
+            }
         }
 
         let fps = 1.0 / dt;
         display_text(&format!("FPS: {}", fps.round()), 20.0, 20.0, WHITE);
     }
-}
 
-pub fn main() {
-    unsafe {
-        set_canvas_size(SCREEN_WIDTH as usize, SCREEN_HEIGHT as usize);
-        
+    fn initialize(&mut self) {
+        unsafe { js::set_canvas_size(SCREEN_WIDTH as usize, SCREEN_HEIGHT as usize) };
+
         // Initialize players
-        PLAYERS[0].position.x = SCREEN_WIDTH /4.0;
-        PLAYERS[0].position.y = SCREEN_HEIGHT /2.0;
-        PLAYERS[0].velocity.x = (PI*0.25).cos()*PLAYER_SPEED;
-        PLAYERS[0].velocity.y = (PI*0.25).sin()*PLAYER_SPEED;
-        
-        PLAYERS[1].position.x = SCREEN_WIDTH /4.0*3.0;
-        PLAYERS[1].position.y = SCREEN_HEIGHT /2.0;
-        PLAYERS[1].velocity.x = (PI*1.25).cos()*PLAYER_SPEED;
-        PLAYERS[1].velocity.y = (PI*1.25).sin()*PLAYER_SPEED;
+        self.players[0].position.x = SCREEN_WIDTH / 4.0;
+        self.players[0].position.y = SCREEN_HEIGHT / 2.0;
+        self.players[0].velocity.x = (PI * 0.25).cos() * PLAYER_SPEED;
+        self.players[0].velocity.y = (PI * 0.25).sin() * PLAYER_SPEED;
+
+        self.players[1].position.x = SCREEN_WIDTH / 4.0 * 3.0;
+        self.players[1].position.y = SCREEN_HEIGHT / 2.0;
+        self.players[1].velocity.x = (PI * 1.25).cos() * PLAYER_SPEED;
+        self.players[1].velocity.y = (PI * 1.25).sin() * PLAYER_SPEED;
 
         // Initialize board
         for x in 0..BOARD_WIDTH {
             for y in 0..BOARD_HEIGHT {
-                if x < BOARD_WIDTH/2 {
-                    BOARD[y][x] = 0;
-                } else {
-                    BOARD[y][x] = 1;
-                }
+                self.board[y][x] = if x < BOARD_WIDTH/2 { 0 } else { 1 };
             }
+        }
+    }
+}
+
+// Static game state
+static mut GAME_STATE: Option<GameState> = None;
+
+#[no_mangle]
+pub fn update_frame(dt: f32) {
+    unsafe {
+        if let Some(game_state) = &mut GAME_STATE {
+            game_state.update(dt);
+        }
+    }
+}
+
+
+pub fn main() {
+    unsafe {
+        GAME_STATE = Some(GameState::new());
+        if let Some(game_state) = &mut GAME_STATE {
+            game_state.initialize();
         }
     }
 }
