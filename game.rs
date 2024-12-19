@@ -38,6 +38,8 @@ const PLAYER_SPEED: f32 = 500.0;
 const BACKGROUND_COLOR: u32 = BLACK;
 const PLAYER_1_COLOR: u32 = RED;
 const PLAYER_2_COLOR: u32 = BLUE;
+const PLAYER_1_CELL_COLOR: u32 = PLAYER_2_COLOR;
+const PLAYER_2_CELL_COLOR: u32 = PLAYER_1_COLOR;
 
 struct Vector2 {
     x: f32,
@@ -48,6 +50,7 @@ struct Player {
     position: Vector2,
     velocity: Vector2,
     color: u32,
+    cell_color: u32,
 }
 
 // players array
@@ -62,6 +65,7 @@ static mut PLAYERS: [Player; 2] = [
             y: 0.0 
         },
         color: PLAYER_1_COLOR,
+        cell_color: PLAYER_1_CELL_COLOR,
     },
     Player { 
         position: Vector2 { 
@@ -73,19 +77,12 @@ static mut PLAYERS: [Player; 2] = [
             y: 0.0 
         },
         color: PLAYER_2_COLOR,
+        cell_color: PLAYER_2_CELL_COLOR,
     },
 ];
 
 // board is matrix of BOARD_WIDTH * BOARD_HEIGHT filled with indices of the players
 static mut BOARD: [[usize; BOARD_WIDTH]; BOARD_HEIGHT] = [[0; BOARD_WIDTH]; BOARD_HEIGHT];
-
-fn rect_circle_collision(l: f32, r: f32, t: f32, b: f32, px: f32, py: f32, rad: f32) -> bool {
-    let x = l.min(r.max(px)).max(l);
-    let y = t.min(b.max(py)).max(t);
-    let dx = px - x;
-    let dy = py - y;
-    return dx*dx + dy*dy <= rad*rad;
-}
 
 unsafe fn player_eats_enemy_cell(px: f32, py: f32, player_index: usize) -> bool {
     let bx = ((px - PLAYER_RADIUS)/CELL_SIZE).floor() as usize;
@@ -94,10 +91,6 @@ unsafe fn player_eats_enemy_cell(px: f32, py: f32, player_index: usize) -> bool 
     let ty = ((py + PLAYER_RADIUS)/CELL_SIZE).floor() as usize;
     for x in bx..tx {
         for y in by..ty {
-            // let l = x as f32 * CELL_SIZE;
-            // let r = (x + 1) as f32 * CELL_SIZE;
-            // let t = y as f32 * CELL_SIZE;
-            // let b = (y + 1) as f32 * CELL_SIZE;
             if y>=BOARD_HEIGHT || x>=BOARD_WIDTH {
                 continue;
             }
@@ -105,9 +98,6 @@ unsafe fn player_eats_enemy_cell(px: f32, py: f32, player_index: usize) -> bool 
                 BOARD[y][x] = player_index;
                 return true;
             }
-            // if rect_circle_collision(l, r, t, b, px, py, PLAYER_RADIUS) {
-            //     log_text(&format!("player_eats_enemy_cell: l:{} r:{} t:{} b:{}, px:{} py:{}, player_index:{}, board:{}", l, r, t, b, px, py, player_index, BOARD[y][x]));
-            // }
         }
     }
     return false;
@@ -124,7 +114,7 @@ pub fn update_frame(dt: f32) {
                 let w = CELL_SIZE ;
                 let h = CELL_SIZE ;
                 let player_index = BOARD[by][bx];
-                let color = PLAYERS[player_index].color;
+                let color = PLAYERS[player_index].cell_color;
                 fill_rect(x, y, w, h, color);
                 fill_rect_border(x, y, w, h, BLACK);
             }
