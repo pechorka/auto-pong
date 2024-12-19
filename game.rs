@@ -16,6 +16,16 @@ pub fn set_player_speed(speed: f32) {
     GAME_STATE.get_or_init(|| Mutex::new(GameState::new())).lock().unwrap().set_player_speed(speed);
 }
 
+#[no_mangle]
+pub fn set_player_radius(radius: f32) {
+    GAME_STATE.get_or_init(|| Mutex::new(GameState::new())).lock().unwrap().set_player_radius(radius);
+}
+
+#[no_mangle]
+pub fn set_cell_size(size: f32) {
+    GAME_STATE.get_or_init(|| Mutex::new(GameState::new())).lock().unwrap().set_cell_size(size);
+}
+
 fn main() {}
 
 // Color comes in as 0xRRGGBBAA format
@@ -27,8 +37,6 @@ const WHITE: u32 = 0xFFFFFFFF;
 const DEFAULT_BOARD_HEIGHT: usize = 20;
 const DEFAULT_BOARD_WIDTH: usize = DEFAULT_BOARD_HEIGHT * 2;
 const DEFAULT_CELL_SIZE: f32 = 20.0;
-const DEFAULT_SCREEN_WIDTH: f32 = DEFAULT_BOARD_WIDTH as f32 * DEFAULT_CELL_SIZE;
-const DEFAULT_SCREEN_HEIGHT: f32 = DEFAULT_BOARD_HEIGHT as f32 * DEFAULT_CELL_SIZE;
 
 const DEFAULT_PLAYER_RADIUS: f32 = DEFAULT_CELL_SIZE as f32;
 const DEFAULT_PLAYER_SPEED: f32 = 500.0;
@@ -70,8 +78,6 @@ struct GameState {
     board_width: usize,
     board_height: usize,
     cell_size: f32,
-    screen_width: f32,
-    screen_height: f32,
     player_radius: f32,
 }
 
@@ -80,17 +86,15 @@ impl GameState {
         let board_width = DEFAULT_BOARD_WIDTH;
         let board_height = DEFAULT_BOARD_HEIGHT;
         let cell_size = DEFAULT_CELL_SIZE;
-        let screen_width = DEFAULT_SCREEN_WIDTH;
-        let screen_height = DEFAULT_SCREEN_HEIGHT;
         let player_radius = DEFAULT_PLAYER_RADIUS;
+        let screen_width = board_width as f32 * cell_size;
+        let screen_height = board_height as f32 * cell_size;
         Self {
             players: Self::new_players(DEFAULT_PLAYER_SPEED, screen_width, screen_height),
             board: Self::new_board(0, 1, board_width, board_height),
             board_width,
             board_height,
             cell_size,
-            screen_width,
-            screen_height,
             player_radius,
         }
     }
@@ -136,6 +140,14 @@ impl GameState {
         board
     }
 
+    fn get_screen_width(&self) -> f32 {
+        self.board_width as f32 * self.cell_size
+    }
+
+    fn get_screen_height(&self) -> f32 {
+        self.board_height as f32 * self.cell_size
+    }
+
     fn player_eats_enemy_cell(&mut self, px: f32, py: f32, player_index: usize) -> bool {
         // player bounds in border coordinates
         let bx = ((px - self.player_radius)/self.cell_size).floor() as usize;
@@ -159,7 +171,7 @@ impl GameState {
     }
 
     fn update(&mut self, dt: f32) {
-        js::set_canvas_size(self.screen_width as usize, self.screen_height as usize);
+        js::set_canvas_size(self.get_screen_width() as usize, self.get_screen_height() as usize);
         js::clear_background(BACKGROUND_COLOR);
 
         // Draw board first
@@ -188,7 +200,7 @@ impl GameState {
             // Update X position
             let nx = current_pos.x + current_vel.x * dt;
             if nx - self.player_radius < 0.0 || 
-               nx + self.player_radius > self.screen_width || 
+               nx + self.player_radius > self.get_screen_width() || 
                self.player_eats_enemy_cell(nx, current_pos.y, i) {
                 new_dir.x *= -1.0;
             } else {
@@ -198,7 +210,7 @@ impl GameState {
             // Update Y position
             let ny = current_pos.y + current_vel.y * dt;
             if ny - self.player_radius < 0.0 || 
-               ny + self.player_radius > self.screen_height || 
+               ny + self.player_radius > self.get_screen_height() || 
                self.player_eats_enemy_cell(new_pos.x, ny, i) {
                 new_dir.y *= -1.0;
             } else {
@@ -222,6 +234,16 @@ impl GameState {
         for player in &mut self.players {
             player.speed = speed;
         }
+    }
+
+    fn set_player_radius(&mut self, radius: f32) {
+        self.player_radius = radius;
+    }
+
+    fn set_cell_size(&mut self, size: f32) {
+        self.cell_size = size;
+        self.players[0].position = Vector2 { x: self.get_screen_width() / 4.0, y: self.get_screen_height() / 2.0 };
+        self.players[1].position = Vector2 { x: self.get_screen_width() / 4.0 * 3.0, y: self.get_screen_height() / 2.0 };
     }
 }
 

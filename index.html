@@ -8,6 +8,17 @@
         <label for="player-speed">Player speed:</label>
         <input type="range" id="player-speed" min="100" max="1000" value="500">
     </div>
+    <div></div>
+        <label for="player-radius">Player radius:</label>
+        <input type="range" id="player-radius" min="10" max="100" value="20">
+    </div>
+    <div>
+        <label for="cell-size">Cell size:</label>
+        <input type="range" id="cell-size" min="10" max="100" value="20">
+        <span id="cell-size-warning" style="color: red;">
+            Warning: Changing cell size will reset player positions
+        </span>
+    </div>
     <script >
         let ctx;
         let allocated; // A global reference of the WASM’s memory area so that we can look up pointers
@@ -97,6 +108,9 @@
 
                 update_frame = wasm.instance.exports.update_frame;
                 set_player_speed = wasm.instance.exports.set_player_speed;
+                set_player_radius = wasm.instance.exports.set_player_radius;
+                set_cell_size = wasm.instance.exports.set_cell_size;
+
                 let prevTimestamp;
                 function frame(timestamp) {
                     const deltaTime = (timestamp - prevTimestamp)*0.001;
@@ -111,6 +125,12 @@
 
                 document.getElementById("player-speed").addEventListener("input", (event) => {
                     set_player_speed(event.target.value);
+                });
+                document.getElementById("player-radius").addEventListener("input", (event) => {
+                    set_player_radius(event.target.value);
+                });
+                document.getElementById("cell-size").addEventListener("input", (event) => {
+                    set_cell_size(event.target.value);
                 });
             }
         )
