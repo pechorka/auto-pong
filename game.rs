@@ -33,7 +33,7 @@ const SCREEN_WIDTH: f32 = BOARD_WIDTH as f32 * CELL_SIZE;
 const SCREEN_HEIGHT: f32 = BOARD_HEIGHT as f32 * CELL_SIZE;
 
 const PLAYER_RADIUS: f32 = CELL_SIZE as f32;
-const PLAYER_SPEED: f32 = 100.0;
+const PLAYER_SPEED: f32 = 500.0;
 
 const BACKGROUND_COLOR: u32 = BLACK;
 const PLAYER_1_COLOR: u32 = RED;
@@ -88,23 +88,26 @@ fn rect_circle_collision(l: f32, r: f32, t: f32, b: f32, px: f32, py: f32, rad: 
 }
 
 unsafe fn player_eats_enemy_cell(px: f32, py: f32, player_index: usize) -> bool {
-    let bx = (px - PLAYER_RADIUS/CELL_SIZE).floor() as usize;
-    let by = (py - PLAYER_RADIUS/CELL_SIZE).floor() as usize;
-    let tx = (px + PLAYER_RADIUS/CELL_SIZE).floor() as usize;
-    let ty = (py + PLAYER_RADIUS/CELL_SIZE).floor() as usize;
+    let bx = ((px - PLAYER_RADIUS)/CELL_SIZE).floor() as usize;
+    let by = ((py - PLAYER_RADIUS)/CELL_SIZE).floor() as usize;
+    let tx = ((px + PLAYER_RADIUS)/CELL_SIZE).floor() as usize;
+    let ty = ((py + PLAYER_RADIUS)/CELL_SIZE).floor() as usize;
     for x in bx..tx {
         for y in by..ty {
-            let l = x as f32 * CELL_SIZE;
-            let r = (x + 1) as f32 * CELL_SIZE;
-            let t = y as f32 * CELL_SIZE;
-            let b = (y + 1) as f32 * CELL_SIZE;
-            if rect_circle_collision(l, r, t, b, px, py, PLAYER_RADIUS) {
-                log_text(&format!("player_eats_enemy_cell: l:{} r:{} t:{} b:{}, px:{} py:{}, player_index:{}, board:{}", l, r, t, b, px, py, player_index, BOARD[y][x]));
-                if BOARD[y][x] != player_index {
-                    BOARD[y][x] = player_index;
-                    return true;
-                }
+            // let l = x as f32 * CELL_SIZE;
+            // let r = (x + 1) as f32 * CELL_SIZE;
+            // let t = y as f32 * CELL_SIZE;
+            // let b = (y + 1) as f32 * CELL_SIZE;
+            if y>=BOARD_HEIGHT || x>=BOARD_WIDTH {
+                continue;
             }
+            if BOARD[y][x] != player_index {
+                BOARD[y][x] = player_index;
+                return true;
+            }
+            // if rect_circle_collision(l, r, t, b, px, py, PLAYER_RADIUS) {
+            //     log_text(&format!("player_eats_enemy_cell: l:{} r:{} t:{} b:{}, px:{} py:{}, player_index:{}, board:{}", l, r, t, b, px, py, player_index, BOARD[y][x]));
+            // }
         }
     }
     return false;
@@ -123,6 +126,7 @@ pub fn update_frame(dt: f32) {
                 let player_index = BOARD[by][bx];
                 let color = PLAYERS[player_index].color;
                 fill_rect(x, y, w, h, color);
+                fill_rect_border(x, y, w, h, BLACK);
             }
         }
 
